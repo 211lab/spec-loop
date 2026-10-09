@@ -36,3 +36,10 @@ def write_spec(result: SpecResult, out_dir: Path) -> Path:
     path = out_dir / f"{slugify(result.intent)}.md"
     path.write_text(render_spec(result), encoding="utf-8")
     return path
+
+
+def write_document(content: str, out_path: Path) -> Path:
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(content, encoding="utf-8")
+    return out_path

@@ -1,9 +1,9 @@
 # spec-loop: Specification
 
-Version: 0.2, October 8, 2026. Status: first-pass baseline. Scope: the minimal
-spec stage of a spec-driven development loop, runnable end to end against
-OpenRouter. Version 0.2 adds two model tiers (authoring and loop) and a
-per-directory session id.
+Version: 0.3, October 8, 2026. Status: implementation baseline. Scope: a
+spec-generation loop plus direct README and implementation-plan authoring via
+OpenRouter. Version 0.3 adds documented UV commands and single-call generation
+for supporting project documents.
 
 ## 1. Goal
 
@@ -43,6 +43,32 @@ The tool:
 Exit codes: `0` success; `2` configuration error (for example a missing API
 key); `1` any other failure.
 
+### Supporting document generation
+
+Use the `generate` subcommand to author a README or implementation plan from
+one or more input files. Each source file is read as UTF-8 and labeled by its
+path in the prompt. The generated Markdown is written to the exact `--out` file
+path, replacing that path if it already exists.
+
+```sh
+# Generate a spec through the existing critique/revise loop.
+uv run spec-loop run "add dark mode to the settings page" --out specs
+
+# Generate a README from the approved spec.
+uv run spec-loop generate readme --source specs/add-dark-mode-to-the-settings-page.md --out README.md
+
+# Generate an ordered implementation plan from the spec.
+uv run spec-loop generate plan --source specs/add-dark-mode-to-the-settings-page.md --out IMPLEMENTATION_PLAN.md
+```
+
+README and plan generation each make one authoring call at `max` effort. Both
+generation commands accept `--model` and `--authoring-effort` overrides, matching
+the environment configuration supported by `run`. The `run` command remains the
+quality-gated spec loop: it drafts and revises at `max` effort and critiques at
+`medium` effort. The generation commands do not
+inspect the repository automatically; pass relevant source files with repeated
+`--source` options. This avoids claiming project facts that were not provided.
+
 ### Model tiers
 
 Two tiers share one floating model alias and differ only by reasoning effort:
@@ -69,12 +95,13 @@ cache. The value is sent in the request body via `extra_body`.
 
 ## 3. Non-goals
 
-- No plan, task, implement, or verify stages. Spec stage only.
+- No task execution, code implementation, or verification stages. The plan command only writes an implementation plan; it does not execute tasks.
 - No GitHub, Gitea, or CI integration inside the tool.
 - No web UI, database, server, or streaming output.
 - No multi-provider abstraction beyond LiteLLM's OpenRouter routing.
 - No prompt-caching tuning, retries, or cost accounting in this version.
 - No editing of an existing spec; each run produces a new artifact.
+- No automatic repository scanning for README/plan generation; sources must be passed explicitly.
 
 ## 4. Spec rubric
 
@@ -128,6 +155,30 @@ that directory's absolute path, and two invocations from the same directory
 produce the same id, proven by a unit test that monkeypatches `litellm.completion`
 and inspects the captured `extra_body`.
 
+**AC9 — README generation.** Given one or more source files and an output path,
+when `uv run spec-loop generate readme --source SPEC.md --out README.md` runs,
+then one LiteLLM call is made at authoring effort `max`, and the output file
+contains generated Markdown based on the labeled input contents.
+
+**AC10 — Implementation-plan generation.** Given one or more source files and
+an output path, when `uv run spec-loop generate plan --source SPEC.md --out
+IMPLEMENTATION_PLAN.md` runs, then one LiteLLM call is made at authoring effort
+`max`, and the output file contains an ordered implementation plan based on the
+labeled input contents.
+
+**AC11 — Missing source fails before model call.** Given a source path that does
+not exist, when either generation command runs, then it reports a clear error,
+returns non-zero, makes no LLM call, and writes no output file.
+
+**AC12 — Document commands are discoverable.** Given a user runs
+`uv run spec-loop --help` or `uv run spec-loop generate --help`, then help
+lists the spec, README, and plan workflows and their UV command examples or
+subcommand syntax.
+
+**AC13 — Generation overrides.** Given a user supplies `--model M` and
+`--authoring-effort E` to a generation command, when the generation call is made,
+then LiteLLM receives model `M` and reasoning effort `E`.
+
 ## 6. Constraints
 
 - Python `>=3.11`, managed by `uv`.
@@ -151,6 +202,12 @@ and inspects the captured `extra_body`.
   directory.
 - `ASSUMPTION:` The API key is read from `OPENROUTER_API_KEY`. LiteLLM reads it
   from the environment for the `openrouter/` provider.
+- `ASSUMPTION:` README and implementation-plan generation are single-call
+  authoring operations at `max` effort. Only spec `run` uses the medium-effort
+  critique loop.
+- `ASSUMPTION:` Generated README and plan output replaces the explicitly named
+  `--out` file if it already exists.
+- `ASSUMPTION:` Sources are UTF-8 text files. Binary inputs are not supported.
 - `ASSUMPTION:` Specs are written as Markdown with a short generated header
   (intent, model, iteration count) followed by the model's spec body.
 - `ASSUMPTION:` A "blocking gap" is any rubric criterion the critique marks as

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from spec_loop.artifact import render_spec, slugify, write_spec
+from spec_loop.artifact import render_spec, slugify, write_document, write_spec
 from spec_loop.loop import SpecResult
 
 
@@ -59,3 +59,23 @@ def test_write_spec_creates_file(tmp_path: Path):
     assert path == tmp_path / "add-dark-mode.md"
     assert path.exists()
     assert "BODY TEXT" in path.read_text(encoding="utf-8")
+
+
+def test_write_document_creates_parents_and_overwrites(tmp_path: Path):
+    out = tmp_path / "nested" / "README.md"
+    out.parent.mkdir(parents=True)
+    out.write_text("OLD", encoding="utf-8")
+
+    path = write_document("NEW CONTENT", out)
+
+    assert path == out
+    assert out.read_text(encoding="utf-8") == "NEW CONTENT"
+
+
+def test_write_document_makes_missing_parents(tmp_path: Path):
+    out = tmp_path / "a" / "b" / "PLAN.md"
+
+    path = write_document("PLAN", out)
+
+    assert path == out
+    assert out.read_text(encoding="utf-8") == "PLAN"

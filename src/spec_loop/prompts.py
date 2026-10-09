@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from typing import Sequence
 
 DRAFT_SYSTEM = (
     "You are a specification writer. Turn the user's intent into a concise, "
@@ -31,6 +32,37 @@ REVISE_SYSTEM = (
     "gap raised in the critique. Keep what is already good, address each gap, "
     "and return the full revised specification in Markdown."
 )
+
+README_SYSTEM = (
+    "You are a technical writer. Write a usable project README in Markdown "
+    "based only on the provided source documents. Include an overview, install "
+    "and usage commands, and any other sections the sources support. Use only "
+    "facts, names, and commands found in the sources; do not invent repository "
+    "facts or commands. Omit details the sources do not provide."
+)
+
+PLAN_SYSTEM = (
+    "You are an implementation planner. Write an ordered implementation plan in "
+    "Markdown based only on the provided source documents. Break the work into "
+    "small, verifiable tasks in dependency order. For each task, state the "
+    "touched areas, how to verify it, its dependencies, and rollback. Use only "
+    "facts from the sources; do not invent repository facts."
+)
+
+_DOCUMENT_SYSTEMS = {"readme": README_SYSTEM, "plan": PLAN_SYSTEM}
+
+
+def document_prompt(
+    kind: str, sources: Sequence[tuple[str, str]]
+) -> tuple[str, str]:
+    try:
+        system = _DOCUMENT_SYSTEMS[kind]
+    except KeyError:
+        raise ValueError(f"unknown document kind: {kind!r}") from None
+    labeled = "\n\n".join(
+        f"Source: {path}\n\n{content}" for path, content in sources
+    )
+    return system, f"Source documents:\n\n{labeled}"
 
 
 def draft_prompt(intent: str) -> tuple[str, str]:

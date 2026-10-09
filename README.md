@@ -6,6 +6,10 @@ against a fixed rubric, revise it, and repeat until the critique reports no
 blocking gaps or a maximum iteration count is reached. The result is written to
 a Markdown file.
 
+It can also author supporting project documents — a README or an ordered
+implementation plan — from one or more source files with a single authoring
+call.
+
 This is the first slice of a larger spec-driven development loop; only the spec
 stage is implemented.
 
@@ -19,7 +23,11 @@ uv sync
 
 ```sh
 uv run spec-loop run "add dark mode to the settings page" --out specs
+uv run spec-loop generate readme --source specs/add-dark-mode-to-the-settings-page.md --out README.md
+uv run spec-loop generate plan --source specs/add-dark-mode-to-the-settings-page.md --out IMPLEMENTATION_PLAN.md
 ```
+
+### Spec loop (`run`)
 
 Options:
 
@@ -34,13 +42,34 @@ Options:
 The artifact is written to `<out>/<slug>.md` and the path plus a one-line
 summary are printed to stdout.
 
+### Document generation (`generate`)
+
+```sh
+uv run spec-loop generate readme --source PATH [--source PATH ...] --out README.md
+uv run spec-loop generate plan --source PATH [--source PATH ...] --out IMPLEMENTATION_PLAN.md
+```
+
+- `readme` writes a usable project README; `plan` writes an ordered
+  implementation plan with small, verifiable tasks, touched areas, verification,
+  dependencies, and rollback.
+- `--source PATH` is required and may be repeated to supply additional project
+  context. Each source is read as UTF-8 and labeled by its path in the prompt.
+- `--out PATH` is the exact output file path. Parent directories are created and
+  an existing file is overwritten.
+- `--model M` and `--authoring-effort E` optionally override the default model
+  and `max` effort for this generation call.
+- Generation makes one authoring call at `max` effort. It does **not** inspect
+  the repository automatically, so pass every relevant file with `--source` to
+  avoid claims that were not provided.
+- A missing or unreadable source fails before any model call or output write.
+
 ## Model tiers
 
 Two tiers share one floating model alias and differ only by reasoning effort:
 
 | Tier | Used for | Model | Reasoning effort |
 | --- | --- | --- | --- |
-| Authoring | Draft and revise | `openrouter/~openai/gpt-luna-latest` | `max` |
+| Authoring | Spec draft/revise, README, and plan | `openrouter/~openai/gpt-luna-latest` | `max` |
 | Loop | Critique | `openrouter/~openai/gpt-luna-latest` | `medium` |
 
 The effort is sent to OpenRouter as `reasoning.effort` via LiteLLM's
@@ -71,6 +100,9 @@ uv run pytest
 ```
 
 All tests run offline; the live smoke test is skipped unless explicitly enabled.
+The suite covers the spec loop, README and plan generation (source labeling,
+single `max`-effort call, output writing), missing-source and missing-key
+failures, and CLI help discoverability.
 
 ## Live smoke test
 
