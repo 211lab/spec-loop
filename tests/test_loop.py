@@ -7,8 +7,8 @@ class FakeLLM:
         self.responses = list(responses)
         self.calls = []
 
-    def complete(self, *, system, user):
-        self.calls.append((system, user))
+    def complete(self, *, system, user, reasoning_effort):
+        self.calls.append((system, user, reasoning_effort))
         return self.responses.pop(0)
 
 
@@ -63,6 +63,33 @@ def test_ac3_iterations_are_bounded():
     assert result.clean is False
     assert result.body == "R2"
     assert len(client.calls) == 5
+
+
+def test_ac7_tier_routing():
+    client = FakeLLM(
+        [
+            "DRAFT",
+            "missing non-goals\nVERDICT: GAPS",
+            "REVISED",
+            "all good\nVERDICT: CLEAN",
+        ]
+    )
+    loop = SpecLoop(
+        client=client,
+        model="m",
+        max_iterations=3,
+        authoring_effort="max",
+        loop_effort="medium",
+    )
+
+    loop.run("add dark mode")
+
+    assert [call[2] for call in client.calls] == [
+        "max",
+        "medium",
+        "max",
+        "medium",
+    ]
 
 
 def test_verdict_must_be_its_own_line():

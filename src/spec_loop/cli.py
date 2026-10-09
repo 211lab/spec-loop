@@ -29,6 +29,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--out", default="specs", help="Output directory (default: specs).")
     run.add_argument("--model", default=None, help="Model id override.")
     run.add_argument(
+        "--authoring-effort",
+        default=None,
+        help="Reasoning effort for draft/revise (default: max).",
+    )
+    run.add_argument(
+        "--loop-effort",
+        default=None,
+        help="Reasoning effort for critique (default: medium).",
+    )
+    run.add_argument(
         "--max-iterations",
         type=int,
         default=3,
@@ -64,6 +74,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         model=args.model,
         max_iterations=args.max_iterations,
         out_dir=Path(args.out),
+        authoring_effort=args.authoring_effort,
+        loop_effort=args.loop_effort,
     )
 
     if not settings.api_key:
@@ -73,11 +85,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 2
 
-    client = LiteLLMClient(model=settings.model, api_key=settings.api_key)
+    client = LiteLLMClient(
+        model=settings.model,
+        api_key=settings.api_key,
+        session_id=settings.session_id,
+    )
     loop = SpecLoop(
         client=client,
         model=settings.model,
         max_iterations=settings.max_iterations,
+        authoring_effort=settings.authoring_effort,
+        loop_effort=settings.loop_effort,
     )
     result = loop.run(intent)
     path = write_spec(result, settings.out_dir)

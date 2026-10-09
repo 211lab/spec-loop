@@ -1,8 +1,9 @@
 # spec-loop: Specification
 
-Version: 0.1, October 8, 2026. Status: first-pass baseline. Scope: the minimal
+Version: 0.2, October 8, 2026. Status: first-pass baseline. Scope: the minimal
 spec stage of a spec-driven development loop, runnable end to end against
-OpenRouter.
+OpenRouter. Version 0.2 adds two model tiers (authoring and loop) and a
+per-directory session id.
 
 ## 1. Goal
 
@@ -28,16 +29,43 @@ spec-loop run "add dark mode to the settings page" --out specs
 The tool:
 
 1. Reads the intent from the positional argument (or `--intent-file PATH`).
-2. Calls the configured model through OpenRouter (via LiteLLM) to draft a spec.
-3. Calls the model to critique the draft against the rubric in section 4.
-4. If the critique lists blocking gaps, calls the model to revise the draft,
-   then critiques again. Repeats up to `--max-iterations` times (default 3).
+2. Calls the **authoring model** (Luna max) through OpenRouter (via LiteLLM) to
+   draft a spec.
+3. Calls the **loop model** (Luna medium) to critique the draft against the
+   rubric in section 4.
+4. If the critique lists blocking gaps, calls the authoring model to revise the
+   draft, then critiques again with the loop model. Repeats up to
+   `--max-iterations` times (default 3).
 5. Writes the final spec to `<out>/<slug>.md`, where `<slug>` is a lowercase,
    hyphenated form of the intent.
 6. Prints the artifact path and a one-line summary to stdout.
 
 Exit codes: `0` success; `2` configuration error (for example a missing API
 key); `1` any other failure.
+
+### Model tiers
+
+Two tiers share one floating model alias and differ only by reasoning effort:
+
+| Tier | Used for | Model | Reasoning effort |
+| --- | --- | --- | --- |
+| Authoring | Spec, README, and implementation-plan authoring (draft and revise) | `openrouter/~openai/gpt-luna-latest` | `max` |
+| Loop | Iterative loop runs (critique) | `openrouter/~openai/gpt-luna-latest` | `medium` |
+
+The effort is sent to OpenRouter as `reasoning.effort` via LiteLLM's
+`extra_body`, so the literal `max` value is used (LiteLLM's `reasoning_effort`
+parameter would rewrite `max` to `xhigh`). Both tiers are overridable:
+`--model`/`SPEC_LOOP_MODEL` set the model id, and
+`--authoring-effort`/`SPEC_LOOP_AUTHORING_EFFORT` and
+`--loop-effort`/`SPEC_LOOP_LOOP_EFFORT` set the efforts.
+
+### Session id
+
+Every LLM call carries a `session_id` derived from the directory that invokes
+the tool: the SHA-256 hex digest of the absolute current working directory. This
+gives OpenRouter a stable sticky-routing and cache-grouping key per calling
+directory, so repeated runs from the same directory reuse the same provider and
+cache. The value is sent in the request body via `extra_body`.
 
 ## 3. Non-goals
 
@@ -89,6 +117,17 @@ artifact.
 
 **AC6 — Offline tests.** `uv run pytest` passes with no network access.
 
+**AC7 — Tier routing.** Given a fake LLM, when the loop runs, then the draft and
+revise calls carry reasoning effort `max` and the critique call carries
+reasoning effort `medium`, proven by a unit test that inspects the captured
+per-call effort.
+
+**AC8 — Session id.** Given the tool is invoked from a directory, when any LLM
+call is made, then it carries a `session_id` equal to the SHA-256 hex digest of
+that directory's absolute path, and two invocations from the same directory
+produce the same id, proven by a unit test that monkeypatches `litellm.completion`
+and inspects the captured `extra_body`.
+
 ## 6. Constraints
 
 - Python `>=3.11`, managed by `uv`.
@@ -99,9 +138,17 @@ artifact.
 
 ## 7. Assumptions
 
-- `ASSUMPTION:` The default model is `openrouter/anthropic/claude-sonnet-4.5`,
-  overridable with `--model` or `SPEC_LOOP_MODEL`. The exact model id may change;
-  it is configuration, not behavior.
+- `ASSUMPTION:` The default model is the floating alias
+  `openrouter/~openai/gpt-luna-latest` for both tiers, overridable with
+  `--model` or `SPEC_LOOP_MODEL`. The alias tracks the latest GPT Luna model;
+  the exact resolved model may change, which is configuration, not behavior.
+- `ASSUMPTION:` "Luna max" and "Luna medium" are the `max` and `medium` values
+  of the model's `reasoning.effort`, not separate model ids. The model metadata
+  lists supported efforts `max, xhigh, high, medium, low, none` with default
+  `medium`.
+- `ASSUMPTION:` The session id is the SHA-256 hex digest of the absolute current
+  working directory, computed when settings load. It is opaque but stable per
+  directory.
 - `ASSUMPTION:` The API key is read from `OPENROUTER_API_KEY`. LiteLLM reads it
   from the environment for the `openrouter/` provider.
 - `ASSUMPTION:` Specs are written as Markdown with a short generated header

@@ -31,11 +31,17 @@ def test_render_contains_intent_and_model():
         iterations=1,
         clean=True,
         model="openrouter/anthropic/claude-sonnet-4.5",
+        authoring_effort="max",
+        loop_effort="medium",
+        session_id="sid-123",
     )
     rendered = render_spec(result)
     assert "add dark mode" in rendered
     assert "openrouter/anthropic/claude-sonnet-4.5" in rendered
     assert "BODY TEXT" in rendered
+    assert "max" in rendered
+    assert "medium" in rendered
+    assert "sid-123" in rendered
 
 
 def test_write_spec_creates_file(tmp_path: Path):
@@ -45,6 +51,9 @@ def test_write_spec_creates_file(tmp_path: Path):
         iterations=0,
         clean=True,
         model="m",
+        authoring_effort="max",
+        loop_effort="medium",
+        session_id="sid-123",
     )
     path = write_spec(result, tmp_path)
     assert path == tmp_path / "add-dark-mode.md"

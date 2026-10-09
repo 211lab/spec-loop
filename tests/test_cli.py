@@ -6,12 +6,13 @@ import spec_loop.cli as cli
 
 
 class FakeClient:
-    def __init__(self, model, api_key=None):
+    def __init__(self, model, api_key=None, session_id=None):
         self.model = model
         self.api_key = api_key
+        self.session_id = session_id
         self.responses = ["DRAFT BODY", "no gaps\nVERDICT: CLEAN"]
 
-    def complete(self, *, system, user):
+    def complete(self, *, system, user, reasoning_effort):
         return self.responses.pop(0)
 
 

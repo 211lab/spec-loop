@@ -19,10 +19,13 @@ class LiveOpenRouterSmokeTest(unittest.TestCase):
             "SPEC_LOOP_SMOKE_MODEL", "openrouter/anthropic/claude-haiku-4-5"
         )
         client = LiteLLMClient(
-            model=model, api_key=os.environ["OPENROUTER_API_KEY"]
+            model=model,
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            session_id="live-smoke",
         )
         text = client.complete(
             system="You are a terse assistant.",
             user="Reply with the single word: pong",
+            reasoning_effort="medium",
         )
         self.assertTrue(text and text.strip())
