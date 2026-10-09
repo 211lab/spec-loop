@@ -1,0 +1,23 @@
+[project]
+name = "spec-loop"
+version = "0.1.0"
+description = "Turn a short statement of intent into a durable, reviewable specification artifact."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["litellm>=1.50"]
+
+[project.scripts]
+spec-loop = "spec_loop.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spec_loop"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
